@@ -1,0 +1,130 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  trips-datalake
+
+  Rest API to manage a Data Lake of tips links
+
+Globals:
+  Function:
+      Timeout: 20
+      MemorySize: 512
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref TripTable
+          ENDPOINT_OVERRIDE: ""
+
+Resources:
+
+  CreateTripRecordFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: target/trips-datalake-1.0-SNAPSHOT-jar-with-dependencies.jar
+      Handler: handler.CreateTripRecord::handleRequest
+      Runtime: java8
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TripTable
+      Events:
+        CreateTripRecord:
+          Type: Api
+          Properties:
+            Path: /trip
+            Method: post
+
+  GetTripRecordsByPeriodFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: target/trips-datalake-1.0-SNAPSHOT-jar-with-dependencies.jar
+      Handler: handler.GetTripRecordsByPeriod::handleRequest
+      Runtime: java8
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TripTable
+      Events:
+        GetTripRecordsByPeriod:
+          Type: Api
+          Properties:
+            Path: /trip/{country}/findByPeriod
+            Method: get
+            RequestParameters:
+              - method.request.querystring.starts
+              - method.request.querystring.ends
+
+  GetTripRecordsByCityFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: target/trips-datalake-1.0-SNAPSHOT-jar-with-dependencies.jar
+      Handler: handler.GetTripRecordsByCity::handleRequest
+      Runtime: java8
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TripTable
+      Events:
+        GetTripRecordsByPeriod:
+          Type: Api
+          Properties:
+            Path: /trip/{country}/findByCity/{city}
+            Method: get
+
+  GetTripRecordsByCountryFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: target/trips-datalake-1.0-SNAPSHOT-jar-with-dependencies.jar
+      Handler: handler.GetTripRecordsByCountry::handleRequest
+      Runtime: java8
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TripTable
+      Events:
+        GetTripRecordsByCountry:
+          Type: Api
+          Properties:
+            Path: /trip/{country}
+            Method: get
+
+  TripTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: trip
+      AttributeDefinitions:
+        - AttributeName: country
+          AttributeType: S
+        - AttributeName: city
+          AttributeType: S
+        - AttributeName: dateTrip
+          AttributeType: S
+      KeySchema:
+        - AttributeName: country
+          KeyType: HASH
+        - AttributeName: dateTrip
+          KeyType: RANGE
+      LocalSecondaryIndexes:
+        - IndexName: cityIndex
+          KeySchema:
+            - AttributeName: country
+              KeyType: HASH
+            - AttributeName: city
+              KeyType: RANGE
+          Projection:
+             ProjectionType: ALL
+      BillingMode: PAY_PER_REQUEST
+
+Outputs:
+
+    CreateTripRecordFunction:
+      Description: "CreateTripRecord Lambda Function ARN"
+      Value: !GetAtt CreateTripRecordFunction.Arn
+
+    GetTripRecordsByPeriodFunction:
+      Description: "GetTripRecordsByPeriod Lambda Function ARN"
+      Value: !GetAtt GetTripRecordsByPeriodFunction.Arn
+
+    GetTripRecordsByCountryFunction:
+      Description: "GetTripRecordsByCountry Lambda Function ARN"
+      Value: !GetAtt GetTripRecordsByCountryFunction.Arn
+
+    GetTripRecordsByCityFunction:
+      Description: "GetTripRecordsByCity Lambda Function ARN"
+      Value: !GetAtt GetTripRecordsByCityFunction.Arn
+
